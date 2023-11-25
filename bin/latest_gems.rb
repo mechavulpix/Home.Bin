@@ -15,7 +15,7 @@ def main
 end
 
 def invalid_gemfile?
-  unless File.exists? "Gemfile"
+  unless File.exist? "Gemfile"
     STDERR.puts "No Gemfile found...  Exiting."
     return true
   end
