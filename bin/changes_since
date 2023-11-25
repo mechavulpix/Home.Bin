@@ -1,0 +1,129 @@
+#!/usr/bin/env bash
+#
+# changes_since - Grab a list of unique tickets from commits since a specific commit or tag
+#
+# The purpose of this script is to help identify Tickets that were worked on between different points in a git log
+# history to help identify the tickets that will be included in an upcoming release.
+
+
+##  Constants
+# This can be changed to suit your Project Id
+TICKET_PROJECT_ID_REGEX='(ACCTS|SPUD)-[0-9]+'
+
+
+##  Variables
+COMMIT_HASH=""
+TAG_QUERY=""
+SELECTED_GIT_REF=""
+
+
+##  Functions
+# Show Usage
+usage() {
+  script_name=$(basename $0)
+  echo "Usage: $script_name [ -h | -c COMMIT_HASH | [-t] TAG_QUERY ] -p PREFIX" 1>&2
+}
+
+# Get a specific git tag from a TAG_QUERY
+select_tag() {
+  # Get all tags matching the TAG_QUERY
+  all_tags=($(git tag -l "$TAG_QUERY*"))
+
+  # If there are too many options, die young
+  total_tags=${#all_tags[@]}
+
+  if [ $total_tags -gt 25 ]
+  then
+    echo "Too many tags matching '$TAG_QUERY' ($total_tags found, search limit 25)"
+    echo "Try refining your search, or specify a commit hash."
+    exit 1
+  fi
+
+  if [ $total_tags -eq 0 ]
+  then
+    echo "No tags matching '$TAG_QUERY'"
+    exit 1
+  fi
+
+  # Select the desired tag
+  echo "Select the tag to generate the changeset since:"
+  for ((i = 1 ; i <= $total_tags ; i++)); do
+    echo " $i - ${all_tags[i-1]}"
+  done
+  echo -n "> "
+  read selection
+
+  if [[ $selection < 1 ]] || [[ $selection > $total_tags ]]
+  then
+    echo "Invalid selection"
+    exit 1
+  fi
+
+  SELECTED_GIT_REF=${all_tags[$selection-1]}
+}
+
+# Get Tickets from Git Commits
+get_matching_tickets() {
+  # This command has some real Top energy, so here's what it's asking the shell for between each pipe "|"
+  #   1) I would like all the git logs between the selected_tag and HEAD, but formatted with only the subject
+  #   2) Now extract only the section of each subject that looks like our Ticket Project Id Regex
+  #   3) Then sort them all into ascending order *ALPHABETICALLY*
+  #   4) And finally, remove all duplicates
+  git log --pretty="%s" $SELECTED_GIT_REF..HEAD | grep -Eo $TICKET_PROJECT_ID_REGEX | sort | uniq
+}
+
+
+## DO THE THINGS!! o/
+
+# Parse Options from terminal
+while getopts ":hc:t:" options; do
+
+  case "${options}" in
+    h)
+      usage
+      exit 0
+      ;;
+    c)
+      COMMIT_HASH=${OPTARG}
+      ;;
+    t)
+      TAG_QUERY=${OPTARG}
+      ;;
+    p)
+      TICKET_PROJECT_ID_REGEX="(${OPTARG})-[0-9]+"
+      ;;
+    :)
+      echo "Error: -${OPTARG} requires an argument"
+      usage
+      exit 1
+      ;;
+    *)
+      echo "Error: unknown argument -${OPTARG}"
+      usage
+      exit 1
+      ;;
+  esac
+done
+
+# Attempt to pick up an unqualified TAG_QUERY if we don't have any other arguments set
+if [ -z "$COMMIT_HASH" ] && [ -z "$TAG_QUERY" ]; then
+  # If we don't have any arguments, this is the end of the line
+  if [ -z "$1" ]; then
+    echo "Error: at minimum, a string to match to a git tag is required"
+    usage
+    exit 1
+  fi
+  TAG_QUERY=$1
+fi
+
+# If given a COMMIT_HASH use that
+if [ -n "$COMMIT_HASH" ]; then
+  SELECTED_GIT_REF=$COMMIT_HASH
+# Otherwise use the TAG_QUERY to select a tag
+else
+  select_tag
+fi
+
+get_matching_tickets
+
+# ~fin

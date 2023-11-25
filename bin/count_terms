@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+#
+# Count occurances of each line of input provided to STDIN found in all files in
+# the working directory and output the results to STDOUT
+#
+# Hacked together to generate metrics on outdated terminology used in
+# applications in hopes that they could then be reimagined or updated to be
+# inclusive.
+
+# count each term
+count_appearance_of_terms() {
+  for term in "${TERMS_LIST[@]}" ; do
+    echo -n "$term"
+    eval "grep \"$term\" -o -R ./* | wc -l"
+  done
+}
+
+# Read lines of terms to count
+IFS=$'\n' read -ra TERMS_LIST -d ''
+
+count_appearance_of_terms
+
+# ~ fin

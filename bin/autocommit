@@ -1,0 +1,9 @@
+#!/bin/sh
+#
+# autocommit
+# 
+# Commit all unchanged files in a repo indescriminately and tag it with the
+# date/time in RFC-3339 format
+
+git add --all
+git commit -m "Autocommit @ $(date --utc --rfc-3339=ns)"

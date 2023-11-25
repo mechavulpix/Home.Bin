@@ -1,0 +1,5 @@
+#!/bin/sh
+#
+# Dirty script to pull the current git branch, mostly for push/pull ops
+
+git branch | grep "*" | awk '{print $2}'

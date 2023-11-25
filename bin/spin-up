@@ -1,0 +1,20 @@
+#!/bin/sh
+#
+# Spin Up a docker image from whatever directory this script is called from.
+#
+# Attempts to build and run the docker image build from the working directory,
+# mapping the specified docker port to localhost 80
+
+name=$(basename $PWD | awk '{print tolower($0)}')
+port=$1
+
+if [ -z "$port" ]; then
+    echo "Docker port to map not specified"
+    exit 1
+fi
+
+echo "Spinning up $name from port $port ..."
+
+docker build --tag $name .
+docker run --publish 127.0.0.1:80:$port $name
+
